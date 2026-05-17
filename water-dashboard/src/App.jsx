@@ -1,16 +1,34 @@
 import { useState } from "react";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "./firebase";
 export default function WaterDashboard() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loggedIn, setLoggedIn] = useState(false);
-
-   const handleLogin = () => {
-  if (email === "admin@gmail.com" && password === "admin123") {
-    setLoggedIn(true);
-  } else {
-    alert("Invalid Email or Password");
-  }
-   };
+  const handleLogin = async () => {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      setLoggedIn(true);
+      alert("Login successful");
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+  return (
+    <div>
+      <input
+        placeholder="email"
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      <input
+        placeholder="password"
+        type="password"
+        onChange={(e) => setPassword(e.target.value)}
+      />
+      <button onClick={handleLogin}>Login</button>
+    </div>
+  );
+}
   const users = [
     { id: 1, name: 'User 1', usage: 120 },
     { id: 2, name: 'User 2', usage: 98 },
@@ -161,4 +179,4 @@ export default function WaterDashboard() {
       </div>
     </div>
   );
-}
+
