@@ -28,7 +28,6 @@ export default function WaterDashboard() {
       <button onClick={handleLogin}>Login</button>
     </div>
   );
-}
   const users = [
     { id: 1, name: 'User 1', usage: 120 },
     { id: 2, name: 'User 2', usage: 98 },
@@ -179,4 +178,4 @@ export default function WaterDashboard() {
       </div>
     </div>
   );
-
+}
