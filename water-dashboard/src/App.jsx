@@ -5,29 +5,7 @@ export default function WaterDashboard() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loggedIn, setLoggedIn] = useState(false);
-  const handleLogin = async () => {
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-      setLoggedIn(true);
-      alert("Login successful");
-    } catch (error) {
-      alert(error.message);
-    }
-  };
-  return (
-    <div>
-      <input
-        placeholder="email"
-        onChange={(e) => setEmail(e.target.value)}
-      />
-      <input
-        placeholder="password"
-        type="password"
-        onChange={(e) => setPassword(e.target.value)}
-      />
-      <button onClick={handleLogin}>Login</button>
-    </div>
-  );
+
   const users = [
     { id: 1, name: 'User 1', usage: 120 },
     { id: 2, name: 'User 2', usage: 98 },
@@ -40,8 +18,17 @@ export default function WaterDashboard() {
     { id: 9, name: 'User 9', usage: 95 },
     { id: 10, name: 'User 10', usage: 130 },
   ];
-
   const totalUsage = users.reduce((sum, user) => sum + user.usage, 0);
+  const handleLogin = async () => {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      setLoggedIn(true);
+      alert("Login successful");
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+ 
   if (!loggedIn) {
   return (
     <div className="flex items-center justify-center min-h-screen bg-slate-100">
