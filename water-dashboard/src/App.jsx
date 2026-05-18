@@ -15,8 +15,8 @@ export default function WaterDashboard() {
   const users = [
     {
       id: 1,
-      name: "User 1",
-      email: "user1@gmail.com",
+      name: "Sahaya Jemi Priya",
+      email: "ljemipriya@gmail.com",
       usage: 120,
     },
     {
@@ -43,6 +43,36 @@ export default function WaterDashboard() {
       email: "user5@gmail.com",
       usage: 110,
     },
+    {
+      id: 6,
+      name: "User 6",
+      email: "user6@gmail.com",
+      usage: 88,
+    },
+    {
+      id: 7,
+      name: "User 7",
+      email: "user7@gmail.com",
+      usage: 150,
+    },
+    {
+      id: 8,
+      name: "User 8",
+      email: "user8@gmail.com",
+      usage: 67,
+    },
+    {
+      id: 9,
+      name: "User 9",
+      email: "user9@gmail.com",
+      usage: 95,
+    },
+    {
+      id: 10,
+      name: "User 10",
+      email: "user10@gmail.com",
+      usage: 130,
+    },
   ];
 
   const totalUsage = users.reduce(
@@ -63,12 +93,16 @@ export default function WaterDashboard() {
         userCredential.user.email;
 
       // ADMIN LOGIN
-      if (loggedInEmail === "11bpriyadharshini@gmail.com") {
+      if (
+        loggedInEmail ===
+        "11bpriyadharshini@gmail.com"
+      ) {
         setCurrentUser("admin");
       } else {
         // USER LOGIN
         const matchedUser = users.find(
-          (user) => user.email === loggedInEmail
+          (user) =>
+            user.email === loggedInEmail
         );
 
         if (matchedUser) {
@@ -80,6 +114,7 @@ export default function WaterDashboard() {
       }
 
       setLoggedIn(true);
+      alert("Login Successful");
     } catch (error) {
       alert(error.message);
     }
@@ -87,12 +122,16 @@ export default function WaterDashboard() {
 
   const handleForgotPassword = async () => {
     if (!email) {
-      alert("Enter your email");
+      alert("Enter your email first");
       return;
     }
 
     try {
-      await sendPasswordResetEmail(auth, email);
+      await sendPasswordResetEmail(
+        auth,
+        email
+      );
+
       alert("Password reset email sent");
     } catch (error) {
       alert(error.message);
@@ -125,7 +164,7 @@ export default function WaterDashboard() {
             onChange={(e) =>
               setPassword(e.target.value)
             }
-            className="w-full p-3 border rounded-xl mb-4"
+            className="w-full p-3 border rounded-xl mb-6"
           />
 
           <button
@@ -137,7 +176,7 @@ export default function WaterDashboard() {
 
           <button
             onClick={handleForgotPassword}
-            className="mt-4 text-blue-700 w-full"
+            className="w-full mt-4 text-blue-700"
           >
             Forgot Password?
           </button>
@@ -147,7 +186,10 @@ export default function WaterDashboard() {
   }
 
   // USER DASHBOARD
-  if (loggedIn && currentUser !== "admin") {
+  if (
+    loggedIn &&
+    currentUser !== "admin"
+  ) {
     return (
       <div className="p-10 min-h-screen bg-slate-100">
         <h1 className="text-3xl font-bold mb-6">
@@ -160,7 +202,8 @@ export default function WaterDashboard() {
           </h2>
 
           <p className="mt-4 text-lg">
-            Water Usage: {currentUser.usage} L
+            Water Usage:
+            {" "}{currentUser.usage} L
           </p>
         </div>
       </div>
@@ -170,6 +213,7 @@ export default function WaterDashboard() {
   // ADMIN DASHBOARD
   return (
     <div className="flex min-h-screen bg-slate-100">
+      {/* Sidebar */}
       <div className="w-64 bg-blue-900 text-white p-6">
         <h1 className="text-2xl font-bold mb-8">
           Water Meter
@@ -194,11 +238,13 @@ export default function WaterDashboard() {
         </ul>
       </div>
 
+      {/* Main Content */}
       <div className="flex-1 p-8">
         <h2 className="text-3xl font-bold mb-6">
           Admin Dashboard
         </h2>
 
+        {/* Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white p-6 rounded-2xl shadow-lg">
             <h3 className="text-gray-500">
@@ -206,7 +252,7 @@ export default function WaterDashboard() {
             </h3>
 
             <p className="text-3xl font-bold mt-2">
-              {users.length}
+              10
             </p>
           </div>
 
@@ -228,6 +274,89 @@ export default function WaterDashboard() {
             <p className="text-3xl font-bold mt-2 text-red-500">
               2
             </p>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="bg-white rounded-2xl shadow-lg p-6">
+          <h3 className="text-2xl font-semibold mb-4">
+            User Water Usage
+          </h3>
+
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-slate-200 text-left">
+                <th className="p-3">
+                  User
+                </th>
+
+                <th className="p-3">
+                  Usage (Liters)
+                </th>
+
+                <th className="p-3">
+                  Status
+                </th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {users.map((user) => (
+                <tr
+                  key={user.id}
+                  className="border-b"
+                >
+                  <td className="p-3">
+                    {user.name}
+                  </td>
+
+                  <td className="p-3">
+                    {user.usage} L
+                  </td>
+
+                  <td className="p-3">
+                    {user.usage > 130 ? (
+                      <span className="bg-red-100 text-red-600 px-3 py-1 rounded-full text-sm">
+                        High Usage
+                      </span>
+                    ) : (
+                      <span className="bg-green-100 text-green-600 px-3 py-1 rounded-full text-sm">
+                        Normal
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Individual User Dashboard */}
+        <div className="mt-10 bg-white rounded-2xl shadow-lg p-6">
+          <h3 className="text-2xl font-semibold mb-4">
+            Individual User Dashboard
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-slate-100 p-5 rounded-xl">
+              <h4 className="text-gray-500">
+                Today's Usage
+              </h4>
+
+              <p className="text-3xl font-bold mt-2">
+                45 L
+              </p>
+            </div>
+
+            <div className="bg-slate-100 p-5 rounded-xl">
+              <h4 className="text-gray-500">
+                Monthly Usage
+              </h4>
+
+              <p className="text-3xl font-bold mt-2">
+                980 L
+              </p>
+            </div>
           </div>
         </div>
       </div>
