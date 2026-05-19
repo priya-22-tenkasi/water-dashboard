@@ -21,8 +21,8 @@ export default function WaterDashboard() {
     },
     {
       id: 2,
-      name: "User 2",
-      email: "user2@gmail.com",
+      name: "Priya Dharshini",
+      email: "priyadharshinik2203@gmail.com",
       usage: 98,
     },
     {
