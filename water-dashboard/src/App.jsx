@@ -16,7 +16,7 @@ export default function WaterDashboard() {
   const [waterData, setWaterData] = useState({
     userName: "",
     totalUsage: 0,
-    timestamp: 0,
+    time: 0,
   });
 
   useEffect(() => {
@@ -141,9 +141,9 @@ export default function WaterDashboard() {
           </p>
 
           <p className="mt-2 text-gray-500">
-            Timestamp:
+            Time:
             {" "}
-            {waterData.timestamp}
+            {waterData.time}
           </p>
         </div>
       </div>
@@ -243,7 +243,7 @@ export default function WaterDashboard() {
                 </td>
 
                 <td className="p-3">
-                  {waterData.timestamp}
+                  {waterData.time}
                 </td>
               </tr>
             </tbody>
