@@ -1,3 +1,12 @@
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from "recharts";
 import { useState, useEffect } from "react";
 import {
   signInWithEmailAndPassword,
@@ -18,6 +27,8 @@ export default function WaterDashboard() {
     totalUsage: 0,
     time: 0,
   });
+  const [weeklyData, setWeeklyData] = useState([]);
+  const [lastWeekReading, setLastWeekReading] = useState(0);
 
   useEffect(() => {
     const waterRef = ref(db, "waterMeter");
@@ -30,6 +41,37 @@ export default function WaterDashboard() {
       }
     });
   }, []);
+
+  useEffect(() => {
+  const interval = setInterval(() => {
+    const currentUsage = Number(
+      waterData.totalUsage || 0
+    );
+
+    const weeklyConsumption =
+      currentUsage - lastWeekReading;
+
+    if (weeklyConsumption >= 0) {
+      setWeeklyData((prev) => {
+        const updated = [
+          ...prev,
+          {
+            week: `Week ${prev.length + 1}`,
+            usage: Number(
+              weeklyConsumption.toFixed(2)
+            ),
+          },
+        ];
+
+        return updated.slice(-4);
+      });
+
+      setLastWeekReading(currentUsage);
+    }
+  }, 120000); // 2 min = 1 week
+
+  return () => clearInterval(interval);
+}, [waterData.totalUsage, lastWeekReading]);
 
   const handleLogin = async () => {
     try {
@@ -150,6 +192,9 @@ export default function WaterDashboard() {
     );
   }
 
+  const monthlyUsage = weeklyData.reduce(
+  (sum, item) => sum + item.usage,0
+  );
   // ADMIN DASHBOARD
   return (
     <div className="flex min-h-screen bg-slate-100">
@@ -227,7 +272,7 @@ export default function WaterDashboard() {
                 </th>
 
                 <th className="p-3 text-left">
-                  Timestamp
+                  Time
                 </th>
               </tr>
             </thead>
@@ -264,6 +309,38 @@ export default function WaterDashboard() {
               {waterData.totalUsage} L
             </p>
           </div>
+        </div>
+        <div className="mt-10 bg-white rounded-2xl shadow-lg p-6">
+          <h3 className="text-2xl font-semibold mb-4">
+              Weekly Water Usage Analysis
+          </h3>
+
+          <ResponsiveContainer
+              width="100%"
+              height={300}
+          >
+            <BarChart data={weeklyData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="week" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="usage" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="mt-10 bg-white rounded-2xl shadow-lg p-6">
+          <h3 className="text-2xl font-semibold mb-4">
+              Monthly Analysis
+          </h3>
+
+          <p className="text-4xl font-bold">
+              {monthlyUsage.toFixed(2)} L
+          </p>
+
+          <p className="text-gray-500 mt-2">
+              Simulated Monthly Consumption
+          </p>
         </div>
       </div>
     </div>
