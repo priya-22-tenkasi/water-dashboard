@@ -315,11 +315,8 @@ export default function WaterDashboard() {
           <h3 className="text-2xl font-semibold mb-4">
               Weekly Water Usage Analysis
           </h3>
-           <pre>
-              {JSON.stringify(weeklyData, null, 2)}
-           </pre>
-        </div>
-          {/* <ResponsiveContainer width="100%" height={300}>
+        
+          <ResponsiveContainer width="100%" height={300}>
             <BarChart data={weeklyData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="week" />
@@ -332,7 +329,7 @@ export default function WaterDashboard() {
               />
             </BarChart>
           </ResponsiveContainer>
-        </div> */}
+        </div>
 
         <div className="mt-10 bg-white rounded-2xl shadow-lg p-6">
           <h3 className="text-2xl font-semibold mb-4">
