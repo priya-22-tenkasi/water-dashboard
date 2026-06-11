@@ -193,7 +193,8 @@ export default function WaterDashboard() {
   }
 
   const monthlyUsage = weeklyData.reduce(
-  (sum, item) => sum + item.usage,0
+  (sum, item) => sum + (item?.usage || 0),
+  0
   );
   // ADMIN DASHBOARD
   return (
@@ -314,20 +315,24 @@ export default function WaterDashboard() {
           <h3 className="text-2xl font-semibold mb-4">
               Weekly Water Usage Analysis
           </h3>
-
-          <ResponsiveContainer
-              width="100%"
-              height={300}
-          >
+           <pre>
+              {JSON.stringify(weeklyData, null, 2)}
+           </pre>
+        </div>
+          {/* <ResponsiveContainer width="100%" height={300}>
             <BarChart data={weeklyData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="week" />
               <YAxis />
               <Tooltip />
-              <Bar dataKey="usage" />
+              <Bar
+                dataKey="usage"
+                fill="#2563eb"
+                radius={[5, 5, 0, 0]}
+              />
             </BarChart>
           </ResponsiveContainer>
-        </div>
+        </div> */}
 
         <div className="mt-10 bg-white rounded-2xl shadow-lg p-6">
           <h3 className="text-2xl font-semibold mb-4">
