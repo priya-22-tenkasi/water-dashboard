@@ -1,13 +1,5 @@
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-} from "recharts";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+
 import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
@@ -25,54 +17,28 @@ export default function WaterDashboard() {
   const [waterData, setWaterData] = useState({
     userName: "",
     totalUsage: 0,
-    time: 0,
+    time: "-",
   });
-  const [weeklyData, setWeeklyData] = useState([]);
-  const [lastWeekReading, setLastWeekReading] = useState(0);
 
+  // =========================
+  // FIREBASE LIVE DATA
+  // =========================
   useEffect(() => {
     const waterRef = ref(db, "waterMeter");
 
     onValue(waterRef, (snapshot) => {
       const data = snapshot.val();
 
-      if (data) {
-        setWaterData(data);
-      }
+      setWaterData({
+        userName: data?.userName || "Unknown User",
+        totalUsage: Number(data?.totalUsage || 0),
+        time: data?.time || "-",
+      });
     });
   }, []);
-
-  useEffect(() => {
-  const interval = setInterval(() => {
-    const currentUsage = Number(
-      waterData.totalUsage || 0
-    );
-
-    const weeklyConsumption =
-      currentUsage - lastWeekReading;
-
-    if (weeklyConsumption >= 0) {
-      setWeeklyData((prev) => {
-        const updated = [
-          ...prev,
-          {
-            week: `Week ${prev.length + 1}`,
-            usage: Number(
-              weeklyConsumption.toFixed(2)
-            ),
-          },
-        ];
-
-        return updated.slice(-4);
-      });
-
-      setLastWeekReading(currentUsage);
-    }
-  }, 120000); // 2 min = 1 week
-
-  return () => clearInterval(interval);
-}, [waterData.totalUsage, lastWeekReading]);
-
+  // =========================
+  // LOGIN
+  // =========================
   const handleLogin = async () => {
     try {
       await signInWithEmailAndPassword(
@@ -98,6 +64,9 @@ export default function WaterDashboard() {
     }
   };
 
+  // =========================
+  // RESET PASSWORD
+  // =========================
   const handleForgotPassword = async () => {
     if (!email) {
       alert("Enter your email first");
@@ -116,7 +85,9 @@ export default function WaterDashboard() {
     }
   };
 
+  // =========================
   // LOGIN PAGE
+  // =========================
   if (!loggedIn) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-100">
@@ -163,7 +134,9 @@ export default function WaterDashboard() {
     );
   }
 
+  // =========================
   // USER DASHBOARD
+  // =========================
   if (currentUser === "user") {
     return (
       <div className="p-10 min-h-screen bg-slate-100">
@@ -178,25 +151,20 @@ export default function WaterDashboard() {
 
           <p className="mt-4 text-lg">
             Water Usage:
-            {" "}
             {waterData.totalUsage} L
           </p>
 
           <p className="mt-2 text-gray-500">
-            Time:
-            {" "}
-            {waterData.time}
+            Time: {waterData.time}
           </p>
         </div>
       </div>
     );
   }
 
-  const monthlyUsage = weeklyData.reduce(
-  (sum, item) => sum + (item?.usage || 0),
-  0
-  );
+  // =========================
   // ADMIN DASHBOARD
+  // =========================
   return (
     <div className="flex min-h-screen bg-slate-100">
       <div className="w-64 bg-blue-900 text-white p-6">
@@ -229,7 +197,6 @@ export default function WaterDashboard() {
             <h3 className="text-gray-500">
               Total Users
             </h3>
-
             <p className="text-3xl font-bold mt-2">
               1
             </p>
@@ -239,7 +206,6 @@ export default function WaterDashboard() {
             <h3 className="text-gray-500">
               Current Usage
             </h3>
-
             <p className="text-3xl font-bold mt-2">
               {waterData.totalUsage} L
             </p>
@@ -249,7 +215,6 @@ export default function WaterDashboard() {
             <h3 className="text-gray-500">
               Sensor Name
             </h3>
-
             <p className="text-3xl font-bold mt-2">
               {waterData.userName}
             </p>
@@ -261,17 +226,15 @@ export default function WaterDashboard() {
             Live Water Meter Data
           </h3>
 
-          <table className="w-full border-collapse">
+          <table className="w-full">
             <thead>
               <tr className="bg-slate-200">
                 <th className="p-3 text-left">
                   User
                 </th>
-
                 <th className="p-3 text-left">
                   Usage
                 </th>
-
                 <th className="p-3 text-left">
                   Time
                 </th>
@@ -283,11 +246,9 @@ export default function WaterDashboard() {
                 <td className="p-3">
                   {waterData.userName}
                 </td>
-
                 <td className="p-3">
                   {waterData.totalUsage} L
                 </td>
-
                 <td className="p-3">
                   {waterData.time}
                 </td>
@@ -295,55 +256,7 @@ export default function WaterDashboard() {
             </tbody>
           </table>
         </div>
-
-        <div className="mt-10 bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-2xl font-semibold mb-4">
-            Current Reading
-          </h3>
-
-          <div className="bg-slate-100 p-5 rounded-xl">
-            <h4 className="text-gray-500">
-              Total Water Usage
-            </h4>
-
-            <p className="text-3xl font-bold mt-2">
-              {waterData.totalUsage} L
-            </p>
-          </div>
-        </div>
-        <div className="mt-10 bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-2xl font-semibold mb-4">
-              Weekly Water Usage Analysis
-          </h3>
         
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={weeklyData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="week" />
-              <YAxis />
-              <Tooltip />
-              <Bar
-                dataKey="usage"
-                fill="#2563eb"
-                radius={[5, 5, 0, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="mt-10 bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-2xl font-semibold mb-4">
-              Monthly Analysis
-          </h3>
-
-          <p className="text-4xl font-bold">
-              {monthlyUsage.toFixed(2)} L
-          </p>
-
-          <p className="text-gray-500 mt-2">
-              Simulated Monthly Consumption
-          </p>
-        </div>
       </div>
     </div>
   );
