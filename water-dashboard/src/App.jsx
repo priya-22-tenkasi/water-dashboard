@@ -1,10 +1,8 @@
 import { useState, useEffect } from "react";
-
 import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
 } from "firebase/auth";
-
 import { ref, onValue } from "firebase/database";
 import { auth, db } from "./firebase";
 
@@ -13,9 +11,7 @@ export default function WaterDashboard() {
   const [password, setPassword] = useState("");
   const [loggedIn, setLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
-
   const [historyType, setHistoryType] = useState("day");
-
   const [waterData, setWaterData] = useState({
     userName: "",
     totalUsage: 0,
@@ -24,12 +20,9 @@ export default function WaterDashboard() {
   
 
   // FIREBASE LIVE DATA
-
   const [history, setHistory] = useState([]);
-
   useEffect(() => {
     const waterRef = ref(db, "waterMeter/history");
-
     onValue(waterRef, (snapshot) => {
       const data = snapshot.val();
       console.log("Firebase Data:", data);
@@ -43,6 +36,7 @@ export default function WaterDashboard() {
       setHistory(records);
       if (records.length > 0) {
         const latest = records[records.length - 1];
+        console.log("Latest Record:", latest);
         setWaterData({
           userName: latest.userName || "",
           totalUsage: Number(latest.totalUsage || 0),
@@ -53,7 +47,7 @@ export default function WaterDashboard() {
   }, []);
 
   // LOGIN
-  
+
   const handleLogin = async () => {
     try {
       await signInWithEmailAndPassword(
@@ -61,9 +55,7 @@ export default function WaterDashboard() {
         email,
         password
       );
-
       setLoggedIn(true);
-
       if (
         email ===
         "11bpriyadharshini@gmail.com"
@@ -72,15 +64,12 @@ export default function WaterDashboard() {
       } else {
         setCurrentUser("user");
       }
-
       alert("Login Successful");
     } catch (error) {
       alert(error.message);
     }
   };
-
   const dailyUsage = [];
-
   for (let i = 1; i < history.length; i++) {
     dailyUsage.push({
       day: i,
@@ -89,13 +78,11 @@ export default function WaterDashboard() {
         history[i - 1].totalUsage,
     });
   }
-
   const weeklyUsage =
     history.length > 7
       ? history[history.length - 1].totalUsage -
         history[history.length - 8].totalUsage
-      : 0;
-  
+      : 0; 
   const monthlyUsage =
     history.length > 30
       ? history[history.length - 1].totalUsage -
@@ -103,19 +90,16 @@ export default function WaterDashboard() {
       : 0;
 
   // RESET PASSWORD
-  
   const handleForgotPassword = async () => {
     if (!email) {
       alert("Enter your email first");
       return;
     }
-
     try {
       await sendPasswordResetEmail(
         auth,
         email
       );
-
       alert("Password reset email sent");
     } catch (error) {
       alert(error.message);
@@ -123,7 +107,6 @@ export default function WaterDashboard() {
   };
 
   // LOGIN PAGE
-
   if (!loggedIn) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-100">
@@ -171,7 +154,6 @@ export default function WaterDashboard() {
   }
 
   // USER DASHBOARD
- 
   if (currentUser === "user") {
     return (
       <div className="p-10 min-h-screen bg-slate-100">
@@ -223,7 +205,6 @@ export default function WaterDashboard() {
   const filteredHistory = getFilteredHistory();
 
   // ADMIN DASHBOARD
-
   return (
     <div className="flex min-h-screen bg-slate-100">
       <div className="w-64 bg-blue-900 text-white p-6">
@@ -272,12 +253,6 @@ export default function WaterDashboard() {
             <h3>Monthly Usage</h3>
             <p className="text-4xl font-bold mt-2">
               {monthlyUsage.toFixed(2)} L
-            </p>
-          </div>
-          <div className="bg-red-500 text-white p-6 rounded-2xl shadow-lg">
-            <h3>Sensor Name</h3>
-            <p className="text-2xl font-bold mt-2">
-              {waterData.userName}
             </p>
           </div>
         </div>
