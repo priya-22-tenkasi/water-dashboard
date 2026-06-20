@@ -280,11 +280,20 @@ export default function WaterDashboard() {
               </tr>
             </thead>
             <tbody>
-              {filteredHistory.map((item) => (
+              {filteredHistory.map((item, index) => (
                 <tr key={item.id}>
-                  <td className="p-2">{item.userName}</td>
-                  <td className="p-2">{item.totalUsage}</td>
-                  <td className="p-2">{item.time}</td>
+                  <td className="p-2">
+                    {index === 0
+                      ? Number(item.totalUsage).toFixed(2)
+                      : (
+                          Number(item.totalUsage) -
+                          Number(filteredHistory[index - 1].totalUsage)
+                        ).toFixed(2)}
+                  </td>
+
+                  <td className="p-2">
+                    {item.time}
+                  </td>
                 </tr>
               ))}
             </tbody>
