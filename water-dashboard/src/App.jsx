@@ -2,9 +2,11 @@ import { useState, useEffect } from "react";
 import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
+  signOut
 } from "firebase/auth";
 import { ref, onValue } from "firebase/database";
 import { auth, db } from "./firebase";
+import waterBg from "./assets/wb.jpg";
 
 export default function WaterDashboard() {
   const [email, setEmail] = useState("");
@@ -12,327 +14,495 @@ export default function WaterDashboard() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [historyType, setHistoryType] = useState("day");
+  const [activeTab, setActiveTab] = useState("dashboard"); 
+  const [searchTerm, setSearchTerm] = useState(""); // For Admin table search
+
   const [waterData, setWaterData] = useState({
-    userName: "",
+    userName: "-",
     totalUsage: 0,
     time: "-",
   });
-  
 
-  // FIREBASE LIVE DATA
   const [history, setHistory] = useState([]);
+
+  // FIREBASE LIVE STREAMING
   useEffect(() => {
     const waterRef = ref(db, "waterMeter/history");
-    onValue(waterRef, (snapshot) => {
+    const unsubscribe = onValue(waterRef, (snapshot) => {
       const data = snapshot.val();
-      console.log("Firebase Data:", data);
-      console.log(history);
       if (!data) return;
+      
       const records = Object.keys(data).map((key) => ({
         id: key,
         ...data[key],
       }));
+      
+      // Sort chronologically
       records.sort((a, b) => Number(a.id) - Number(b.id));
       setHistory(records);
+      
       if (records.length > 0) {
         const latest = records[records.length - 1];
-        console.log("Latest Record:", latest);
         setWaterData({
-          userName: latest.userName || "",
+          userName: latest.userName || "Valued Customer",
           totalUsage: Number(latest.totalUsage || 0),
           time: latest.time || "-",
         });
       }
     });
+
+    return () => unsubscribe();
   }, []);
 
-  // LOGIN
-
+  // LOGIN CONTEXT
   const handleLogin = async () => {
     try {
-      await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
+      await signInWithEmailAndPassword(auth, email, password);
       setLoggedIn(true);
-      if (
-        email ===
-        "11bpriyadharshini@gmail.com"
-      ) {
+      if (email.toLowerCase() === "11bpriyadharshini@gmail.com") {
         setCurrentUser("admin");
       } else {
         setCurrentUser("user");
       }
-      alert("Login Successful");
     } catch (error) {
       alert(error.message);
     }
   };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setLoggedIn(false);
+      setCurrentUser(null);
+      setActiveTab("dashboard");
+      setEmail("");
+      setPassword("");
+    } catch (error) {
+      alert("Error logging out");
+    }
+  };
+
+  // FORGOT PASSWORD
+  const handleForgotPassword = async () => {
+    if (!email) {
+      alert("Please enter your email first");
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email);
+      alert("Password reset email dispatched successfully!");
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  // ADVANCED CALCULATION LOGIC (Safely fallbacks on insufficient entries)
   const dailyUsage = [];
   for (let i = 1; i < history.length; i++) {
     dailyUsage.push({
       day: i,
-      usage:
-        history[i].totalUsage -
-        history[i - 1].totalUsage,
+      usage: Math.max(0, Number(history[i].totalUsage || 0) - Number(history[i - 1].totalUsage || 0)),
     });
   }
-  const weeklyUsage =
-    history.length > 7
-      ? history[history.length - 1].totalUsage -
-        history[history.length - 8].totalUsage
-      : 0; 
-  const monthlyUsage =
-    history.length > 30
-      ? history[history.length - 1].totalUsage -
-        history[history.length - 31].totalUsage
-      : 0;
 
-  // RESET PASSWORD
-  const handleForgotPassword = async () => {
-    if (!email) {
-      alert("Enter your email first");
-      return;
-    }
-    try {
-      await sendPasswordResetEmail(
-        auth,
-        email
-      );
-      alert("Password reset email sent");
-    } catch (error) {
-      alert(error.message);
-    }
+  const getUsageDelta = (lookbackCount) => {
+    if (history.length < 2) return 0;
+    const initialIndex = Math.max(0, history.length - lookbackCount);
+    const delta = Number(history[history.length - 1]?.totalUsage || 0) - Number(history[initialIndex]?.totalUsage || 0);
+    return Math.max(0, delta);
   };
 
-  // LOGIN PAGE
-  if (!loggedIn) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-100">
-        <div className="bg-white p-8 rounded-2xl shadow-xl w-96">
-          <h1 className="text-3xl font-bold text-center mb-6">
-            Water Meter Login
-          </h1>
+  const weeklyUsage = getUsageDelta(8); 
+  const monthlyUsage = getUsageDelta(31);
 
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) =>
-              setEmail(e.target.value)
-            }
-            className="w-full p-3 border rounded-xl mb-4"
-          />
-
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) =>
-              setPassword(e.target.value)
-            }
-            className="w-full p-3 border rounded-xl mb-4"
-          />
-
-          <button
-            onClick={handleLogin}
-            className="w-full bg-blue-700 text-white p-3 rounded-xl"
-          >
-            Login
-          </button>
-
-          <button
-            onClick={handleForgotPassword}
-            className="w-full mt-4 text-blue-700"
-          >
-            Forgot Password?
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // USER DASHBOARD
-  if (currentUser === "user") {
-    return (
-      <div className="p-10 min-h-screen bg-slate-100">
-        <h1 className="text-3xl font-bold mb-6">
-          User Dashboard
-        </h1>
-
-        <div className="bg-white p-6 rounded-2xl shadow-lg w-96">
-          <h2 className="text-2xl font-bold">
-            {waterData.userName}
-          </h2>
-
-          <p className="mt-4 text-lg">
-            Water Usage:
-            {waterData.totalUsage} L
-          </p>
-
-          <p className="mt-2 text-gray-500">
-            Time: {waterData.time}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
+  // TIMEFRAME TIME-FILTERING (Calculates relative min delta mapping)
   const getFilteredHistory = () => {
     const now = new Date();
-    let minutesLimit = 2; // 1 day = 2 min
-    if (historyType === "week") {
-      minutesLimit = 14; // 7 days = 14 min
-    }
-    if (historyType === "month") {
-      minutesLimit = 60; // 30 days = 60 min
-    }
+    let minutesLimit = 2; // 1 day simulation = 2 min
+    if (historyType === "week") minutesLimit = 14; 
+    if (historyType === "month") minutesLimit = 60;
 
     return history.filter((item) => {
       if (!item.time) return false;
-      const [h, m, s] = item.time.split(":").map(Number);
+      const parts = item.time.split(":");
+      if (parts.length < 2) return false;
+      
+      const h = Number(parts[0]);
+      const m = Number(parts[1]);
+      const s = parts[2] ? Number(parts[2]) : 0;
+
       const recordDate = new Date();
       recordDate.setHours(h, m, s, 0);
-      const diffMinutes =
-        (now.getTime() - recordDate.getTime()) /
-        (1000 * 60);
-      return diffMinutes >= 0 &&
-            diffMinutes <= minutesLimit;
+      
+      const diffMinutes = (now.getTime() - recordDate.getTime()) / (1000 * 60);
+      return diffMinutes >= 0 && diffMinutes <= minutesLimit;
     });
   };
 
   const filteredHistory = getFilteredHistory();
+  
+  // Filter Master Table using search term input
+  const searchedHistory = history.filter(item => 
+    (item.userName && item.userName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    item.id.toString().includes(searchTerm)
+  );
 
-  // ADMIN DASHBOARD
+  // --- RENDER 1: AUTHENTICATION INTERFACE ---
+  if (!loggedIn) {
+    return (
+     <div
+        className="flex items-center justify-center min-h-screen bg-cover bg-center"
+        style={{
+          backgroundImage: `url(${waterBg})`,
+        }}
+     >
+        <div className="absolute inset-0 bg-blue/50"></div>
+        <div className="relative bg-white/95 p-8 rounded-2xl shadow-2xl w-96 text-black">
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-bold mt-2 text-black">Water Meter </h1>
+          </div>
+          <div className="space-y-4">
+            <input
+              type="email"
+              placeholder="Registered Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-blue-500 transition-colors"
+            />
+            <input
+              type="password"
+              placeholder="Secure Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-blue-500 transition-colors"
+            />
+            <button
+              onClick={handleLogin}
+              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium p-3 rounded-xl shadow-lg shadow-blue-500/20 transition-all active:scale-[0.99]"
+            >
+              Sign In
+            </button>
+            <button
+              onClick={handleForgotPassword}
+              className="w-full text-center text-sm text-slate-600 hover:text-blue-400 transition-colors pt-2"
+            >
+              Forgot Password?
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- RENDER 2: USER METRIC VIEW ---
+  if (currentUser === "user") {
+    const isOveruse = waterData.totalUsage > 150; // Custom warning indicator limit
+    return (
+      <div className="p-6 md:p-10 min-h-screen bg-slate-50 text-slate-900">
+        <div className="max-w-4xl mx-auto flex flex-col gap-6">
+          <div className="flex justify-between items-center bg-yellow-300 p-6 rounded-2xl shadow-sm border border-slate-100">
+            <div>
+              <p className="text-3x1 font-extrabold text-slate-600 uppercase tracking-wider">User Dashboard</p>
+              <h1 className="text-3xl font-extrabold text-red-900 tracking-tight">{waterData.userName}</h1>
+            </div>
+            <button 
+              onClick={handleLogout}
+              className="bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 px-4 py-2 rounded-xl text-sm font-medium transition-colors"
+            >
+              Log Out
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-yellow-300 p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+              <div>
+                <h3 className="text-slate-600 text-3x1 font-medium">Meter Reading</h3>
+                <p className="text-4xl font-black text-red-900 mt-2">{waterData.totalUsage} <span className="text-2x1 font-normal text-red-900">Liters</span></p>
+              </div>
+              <p className="text-3x1 text-slate-600 mt-4">Last refresh stream: <span className="font-mono">{waterData.time}</span></p>
+            </div>
+            <div className="bg-yellow-300 p-6 rounded-2xl shadow-sm border border-slate-100">
+              <h3 className="text-slate-600 text-3x1 font-medium">Estimated Bill Tier</h3>
+              <p className="text-4xl font-black text-red-900 mt-2">₹{(waterData.totalUsage * 15).toFixed(2)}</p>
+              <span className="inline-block mt-4 text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">Rate Base: ₹15 / Liter</span>
+            </div>
+            <div className={`bg-yellow-300 p-6 rounded-2xl shadow-sm border transition-colors ${isOveruse ? "bg-amber-50 border-amber-200" : "bg-emerald-50 border-emerald-200"}`}>
+              <h3 className="text-slate-600 text-2x1 font-medium">Efficiency Analysis</h3>
+              <p className={`text-3xl font-bold mt-2 ${isOveruse ? "text-red-900" : "text-red-900"}`}>
+                {isOveruse ? "Heavy Volumetric Usage" : "Optimal Threshold"}
+              </p>
+              <p className="text-2x1 text-slate-600 mt-2">Target recommended limit is under 150L.</p>
+            </div>
+          </div>
+
+          <div className="bg-purple-400 p-6 rounded-2xl shadow-sm border border-slate-100">
+            <h3 className="text-lg font-bold text-slate-900 mb-4">Your Usage Log Chain</h3>
+            <div className="overflow-x-auto max-h-60 overflow-y-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="bg-slate-50 text-slate-500 sticky top-0">
+                    <th className="p-3 font-bold">Sequence Index</th>
+                    <th className="p-3 font-bold">Running Cumulative Log</th>
+                    <th className="p-3 font-bold">Time Recorded</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-400 text-slate-400">
+                  {history.map((record, idx) => (
+                    <tr key={record.id} className="hover:bg-slate-50/80">
+                      <td className="p-3 font-mono text-slate-900">{idx + 1}</td>
+                      <td className="p-3 font-medium text-slate-900">{Number(record.totalUsage || 0).toFixed(2)} L</td>
+                      <td className="p-3 text-slate-900">{record.time || "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- RENDER 3: ADMIN ADMINISTRATIVE PANEL ---
   return (
-    <div className="flex min-h-screen bg-slate-100">
-      <div className="w-64 bg-blue-900 text-white p-6">
-        <h1 className="text-2xl font-bold mb-8">
-          Water Meter
-        </h1>
-
-        <ul className="space-y-4">
-          <li className="bg-blue-700 p-3 rounded-xl">
-            Dashboard
-          </li>
-
-          <li className="hover:bg-blue-700 p-3 rounded-xl cursor-pointer">
-            Live Data
-          </li>
-
-          <li className="hover:bg-blue-700 p-3 rounded-xl cursor-pointer">
-            Reports
-          </li>
-        </ul>
+    <div className="flex min-h-screen bg-slate-50 text-slate-800 antialiased">
+      {/* SIDEBAR NAVIGATION */}
+      <div className="w-64 bg-slate-900 text-slate-300 p-6 flex flex-col justify-between border-r border-slate-800 shrink-0">
+        <div>
+          <div className="flex items-center space-x-2 mb-8 px-2">
+            <span className="text-lg font-bold tracking-tight text-white">ADMIN DASHBOARD </span>
+          </div>
+          <nav className="space-y-1">
+            {[
+              { id: "dashboard", label: "OVERVIEW " },
+              { id: "live", label: "REALTIME DATA" },
+              { id: "reports", label: "REPORTS"}
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`w-full flex items-center space-x-3 p-3 rounded-xl font-medium text-sm transition-all ${
+                  activeTab === tab.id 
+                    ? "bg-blue-600 text-white shadow-lg shadow-blue-600/10" 
+                    : "hover:bg-slate-800 hover:text-white"
+                }`}
+              >
+                <span>{tab.icon}</span>
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </nav>
+        </div>
+        <button
+          onClick={handleLogout}
+          className="w-full bg-slate-800 hover:bg-red-600 hover:text-white p-3 rounded-xl text-sm font-medium"
+        >
+          Log out
+        </button>
       </div>
 
-      <div className="flex-1 p-8">
-        <h2 className="text-3xl font-bold mb-6">
-          Admin Dashboard
-        </h2>
+      {/* DASHBOARD WORKSPACE MAIN VIEW */}
+      <div className="flex-1 p-8 overflow-y-auto max-w-[1400px]">
+        
+        {/* TAB 1: OVERVIEW METRICS */}
+        {activeTab === "dashboard" && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              <div className="bg-blue-200 p-5 rounded-2xl border border-blue-200 shadow-sm">
+                <span className="text-xs text-blue-700 font-semibold uppercase">
+                  Total Users
+                </span>
+                <p className="text-3xl font-black text-blue-900 mt-1">1</p>
+              </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
-          <div className="bg-blue-500 text-white p-6 rounded-2xl shadow-lg">
-            <h3>Total Users</h3>
-            <p className="text-4xl font-bold mt-2">1</p>
-          </div>
-          <div className="bg-green-500 text-white p-6 rounded-2xl shadow-lg">
-            <h3>Current Usage</h3>
-            <p className="text-4xl font-bold mt-2">
-              {waterData.totalUsage} L
-            </p>
-          </div>
-          <div className="bg-yellow-500 text-white p-6 rounded-2xl shadow-lg">
-            <h3>Weekly Usage</h3>
-            <p className="text-4xl font-bold mt-2">
-              {weeklyUsage.toFixed(2)} L
-            </p>
-          </div>
-          <div className="bg-purple-500 text-white p-6 rounded-2xl shadow-lg">
-            <h3>Monthly Usage</h3>
-            <p className="text-4xl font-bold mt-2">
-              {monthlyUsage.toFixed(2)} L
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-lg p-6 mt-8">
-          <h3 className="text-2xl font-semibold mb-4">
-            Water Usage History
-          </h3>
-
-          <select
-            value={historyType}
-            onChange={(e) => setHistoryType(e.target.value)}
-            className="border p-2 rounded-lg mb-4"
-          >
-            <option value="day">1 Day (2 min)</option>
-            <option value="week">7 Days (14 min)</option>
-            <option value="month">30 Days (60 min)</option>
-          </select>
-          <table className="w-full border">
-            <thead>
-              <tr className="bg-slate-200">
-                <th className="p-2">User</th>
-                <th className="p-2">Usage (L)</th>
-                <th className="p-2">Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredHistory.map((item, index) => (
-                <tr key={item.id}>
-                  <td className="p-2">
-                    {index === 0
-                      ? Number(item.totalUsage).toFixed(2)
-                      : (
-                          Number(item.totalUsage) -
-                          Number(filteredHistory[index - 1].totalUsage)
-                        ).toFixed(2)}
-                  </td>
-
-                  <td className="p-2">
-                    {item.time}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-2xl font-semibold mb-4">
-            Live Water Meter Data
-          </h3>
-          <table className="w-full">
-            <thead>
-              <tr className="bg-slate-200">
-                <th className="p-3 text-left">
-                  User
-                </th>
-                <th className="p-3 text-left">
-                  Usage
-                </th>
-                <th className="p-3 text-left">
-                  Time
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className="p-3">
-                  {waterData.userName}
-                </td>
-                <td className="p-3">
+              <div className="bg-green-200 p-5 rounded-2xl border border-green-200 shadow-sm">
+                <span className="text-xs text-green-700 font-semibold uppercase">
+                  Current Usage
+                </span>
+                <p className="text-3xl font-black text-green-900 mt-1">
                   {waterData.totalUsage} L
-                </td>
-                <td className="p-3">
-                  {waterData.time}
-                </td>
-              </tr>
-            </tbody>
-          </table>      
-        </div>     
+                </p>
+              </div>
+
+              <div className="bg-blue-200 p-5 rounded-2xl border border-blue-200 shadow-sm">
+                <span className="text-xs text-blue-700 font-semibold uppercase">
+                  Weekly Usage
+                </span>
+                <p className="text-3xl font-black text-blue-900 mt-1">
+                  {weeklyUsage.toFixed(1)} L
+                </p>
+              </div>
+
+              <div className="bg-green-200 p-5 rounded-2xl border border-green-200 shadow-sm">
+                <span className="text-xs text-green-700 font-semibold uppercase">
+                  Monthly Usage
+                </span>
+                <p className="text-3xl font-black text-green-900 mt-1">
+                  {monthlyUsage.toFixed(1)} L
+                </p>
+              </div>
+            </div>
+
+            {/* TIMEFRAME FILTER GRAPHICS TABLE */}
+            <div className="bg-purple-400 rounded-2xl border border-slate-200/80 shadow-sm p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Adaptive Segment Logs</h3>
+                </div>
+                <select
+                  value={historyType}
+                  onChange={(e) => setHistoryType(e.target.value)}
+                  className="border border-slate-200 bg-slate-50 p-2.5 text-sm rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
+                >
+                  <option value="day">1 Day (2 Min)</option>
+                  <option value="week">7 Days (14 Min)</option>
+                  <option value="month">30 Days (60 Min)</option>
+                </select>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-500 border-b border-slate-100">
+                      <th className="p-3 font-semibold">User </th>
+                      <th className="p-3 font-semibold">Usage </th>
+                      <th className="p-3 font-semibold">Timestamp </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredHistory.map((item, index) => {
+                      const computedIncrement = index === 0 
+                        ? Number(item.totalUsage || 0) 
+                        : Number(item.totalUsage || 0) - Number(filteredHistory[index - 1].totalUsage || 0);
+                      
+                      return (
+                        <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
+                          <td className="p-3 font-medium text-slate-800">{item.userName || waterData.userName}</td>
+                          <td className="p-3 font-mono font-semibold text-blue-600">
+                            +{Math.max(0, computedIncrement).toFixed(2)} L
+                          </td>
+                          <td className="p-3 text-slate-500 font-mono text-xs">{item.time}</td>
+                        </tr>
+                      );
+                    })}
+                    {filteredHistory.length === 0 && (
+                      <tr>
+                        <td colSpan="3" className="p-6 text-center text-slate-400 text-xs">
+                          No active records fetched in this targeted interval window.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: LIVE STREAM READOUT */}
+        {activeTab === "live" && (
+          <div className="space-y-6">
+            <div className="bg-green-400 rounded-2xl border border-slate-200/80 shadow-sm p-8 max-w-2xl">
+              <div className="flex items-center space-x-3 mb-6 bg-emerald-50 border border-emerald-100 p-3 rounded-xl w-fit">
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Live </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-y-4 gap-x-8 border-t border-slate-100 pt-6">
+                <div>
+                  <span className="text-xs font-medium text-white-400 block">User Name </span>
+                  <span className="text-lg font-bold text-slate-800 mt-0.5 block">{waterData.userName}</span>
+                </div>
+                <div>
+                  <span className="text-xs font-medium text-white-400 block">Absolute Total Usage</span>
+                  <span className="text-lg font-black text-slate-800 mt-0.5 block">{waterData.totalUsage} L</span>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-xs font-medium text-white-400 block">Last Verified Broadcast Time</span>
+                  <span className="text-sm font-mono text-slate-600 mt-0.5 block">{waterData.time}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: AUDIT COMPREHENSIVE REPORTS */}
+        {activeTab === "reports" && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <button 
+                onClick={() => window.print()} 
+                className="bg-slate-900 hover:bg-slate-800 text-white font-medium px-5 py-2.5 rounded-xl text-sm transition-colors active:scale-95 shadow-sm"
+              >
+                Export Master Report / PDF
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="bg-purple-300 p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                <span className="text-xs text-slate-600 font-semibold uppercase">Total Log Iterations</span>
+                <p className="text-2xl font-bold mt-1 text-slate-800">{history.length} Entries</p>
+              </div>
+              <div className="bg-purple-300 p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                <span className="text-xs text-slate-600 font-semibold uppercase">Peak Read Value</span>
+                <p className="text-2xl font-bold mt-1 text-slate-800">
+                  {history.length > 0 ? `${Math.max(...history.map(o => Number(o.totalUsage || 0)))} L` : "0 L"}
+                </p>
+              </div>
+              <div className="bg-purple-300 p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                <span className="text-xs text-slate-600 font-semibold uppercase">Average Delta Step</span>
+                <p className="text-2xl font-bold mt-1 text-slate-800">
+                  {dailyUsage.length > 0 
+                    ? `${(dailyUsage.reduce((acc, curr) => acc + curr.usage, 0) / dailyUsage.length).toFixed(2)} L`
+                    : "0 L"}
+                </p>
+              </div>
+            </div>
+
+            {/* SEACH CONTROL LOG DATA FIELD */}
+            <div className="bg-green-300 rounded-2xl border border-slate-200/80 shadow-sm p-6">
+              <div className="mb-4">
+                <input
+                  type="text"
+                  placeholder="🔍 Search master logs by user name or entry ID..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full max-w-md p-2.5 border border-slate-200 text-sm rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
+                />
+              </div>
+
+              <div className="overflow-x-auto max-h-[450px] overflow-y-auto">
+                <table className="w-full text-left text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-slate-900 text-white text-xs font-semibold uppercase tracking-wider sticky top-0 z-10">
+                      <th className="p-3">Record ID</th>
+                      <th className="p-3">User </th>
+                      <th className="p-3">Absolute Usage (L)</th>
+                      <th className="p-3">Timestamp</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    {searchedHistory.map((record) => (
+                      <tr key={record.id} className="hover:bg-slate-50/80 transition-colors text-xs">
+                        <td className="p-3 font-mono text-slate-900 font-medium">{record.id}</td>
+                        <td className="p-3 font-bold text-slate-900">{record.userName || "N/A"}</td>
+                        <td className="p-3 text-slate-900 font-bold">{Number(record.totalUsage || 0).toFixed(2)} L</td>
+                        <td className="p-3 text-slate-900 font-mono">{record.time || "-"}</td>
+                      </tr>
+                    ))}
+                    {searchedHistory.length === 0 && (
+                      <tr>
+                        <td colSpan="4" className="p-8 text-center text-slate-400">
+                          No matching logs match query parameter settings.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
