@@ -24,6 +24,17 @@ export default function WaterDashboard() {
   });
 
   const [history, setHistory] = useState([]);
+  const today = new Date().toISOString().split("T")[0];
+  const todayRecords = history.filter(
+    (item) => item.date === today
+  );
+  let todayUsage = 0;
+  if (todayRecords.length > 1) {
+    todayUsage =
+      Number(todayRecords[todayRecords.length - 1].totalUsage) -
+      Number(todayRecords[0].totalUsage);
+  }
+  const limitExceeded = todayUsage > 1;
 
   // FIREBASE LIVE STREAMING
   useEffect(() => {
@@ -38,7 +49,12 @@ export default function WaterDashboard() {
       }));
       
       // Sort chronologically
-      records.sort((a, b) => Number(a.id) - Number(b.id));
+      records.sort((a, b) => {
+        const dateA = new Date(`${a.date} ${a.time}`);
+        const dateB = new Date(`${b.date} ${b.time}`);
+        return dateB - dateA; // newest first
+      });
+
       setHistory(records);
       
       if (records.length > 0) {
@@ -112,30 +128,82 @@ export default function WaterDashboard() {
     return Math.max(0, delta);
   };
 
-  const weeklyUsage = getUsageDelta(8); 
-  const monthlyUsage = getUsageDelta(31);
+  const weekRecords = history.filter((item) => {
+    if (!item.date) return false;
+
+    const d = new Date(item.date);
+
+    const diffDays =
+      (today - d) / (1000 * 60 * 60 * 24);
+
+    return diffDays >= 0 && diffDays < 7;
+  });
+
+  let weeklyUsage = 0;
+
+  if (weekRecords.length > 1) {
+    weeklyUsage =
+      Number(weekRecords[weekRecords.length - 1].totalUsage || 0) -
+      Number(weekRecords[0].totalUsage || 0);
+  }
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+
+  const monthRecords = history.filter((item) => {
+    if (!item.date) return false;
+
+    const d = new Date(item.date);
+
+    return (
+      d.getMonth() === currentMonth &&
+      d.getFullYear() === currentYear
+    );
+  });
+
+  let monthlyUsage = 0;
+
+  if (monthRecords.length > 1) {
+    monthlyUsage =
+      Number(monthRecords[monthRecords.length - 1].totalUsage || 0) -
+      Number(monthRecords[0].totalUsage || 0);
+  }
+  const FREE_LIMIT = 30; // Liters per month
+  const RATE_PER_LITER = 15;
+
+  const chargeableUsage =
+    monthlyUsage > FREE_LIMIT
+      ? monthlyUsage - FREE_LIMIT
+      : 0;
+
+  const monthlyBill =
+    chargeableUsage * RATE_PER_LITER;
 
   // TIMEFRAME TIME-FILTERING (Calculates relative min delta mapping)
   const getFilteredHistory = () => {
-    const now = new Date();
-    let minutesLimit = 2; // 1 day simulation = 2 min
-    if (historyType === "week") minutesLimit = 14; 
-    if (historyType === "month") minutesLimit = 60;
+    const today = new Date();
 
     return history.filter((item) => {
-      if (!item.time) return false;
-      const parts = item.time.split(":");
-      if (parts.length < 2) return false;
-      
-      const h = Number(parts[0]);
-      const m = Number(parts[1]);
-      const s = parts[2] ? Number(parts[2]) : 0;
+      if (!item.date) return false;
 
-      const recordDate = new Date();
-      recordDate.setHours(h, m, s, 0);
-      
-      const diffMinutes = (now.getTime() - recordDate.getTime()) / (1000 * 60);
-      return diffMinutes >= 0 && diffMinutes <= minutesLimit;
+      const recordDate = new Date(item.date);
+
+      const diffDays = Math.floor(
+        (today - recordDate) / (1000 * 60 * 60 * 24)
+      );
+
+      if (historyType === "day") {
+        return diffDays === 0;
+      }
+
+      if (historyType === "week") {
+        return diffDays >= 0 && diffDays < 7;
+      }
+
+      if (historyType === "month") {
+        return diffDays >= 0 && diffDays < 30;
+      }
+
+      return false;
     });
   };
 
@@ -200,6 +268,11 @@ export default function WaterDashboard() {
     return (
       <div className="p-6 md:p-10 min-h-screen bg-slate-50 text-slate-900">
         <div className="max-w-4xl mx-auto flex flex-col gap-6">
+          {todayUsage > 1 && (
+            <div className="bg-red-100 border border-red-300 text-red-700 p-4 rounded-xl font-semibold">
+              ⚠ Alert! Your daily water usage has exceeded 1 Liter.
+            </div>
+          )}
           <div className="flex justify-between items-center bg-yellow-300 p-6 rounded-2xl shadow-sm border border-slate-100">
             <div>
               <p className="text-3x1 font-extrabold text-slate-600 uppercase tracking-wider">User Dashboard</p>
@@ -223,15 +296,15 @@ export default function WaterDashboard() {
             </div>
             <div className="bg-yellow-300 p-6 rounded-2xl shadow-sm border border-slate-100">
               <h3 className="text-slate-600 text-3x1 font-medium">Estimated Bill Tier</h3>
-              <p className="text-4xl font-black text-red-900 mt-2">₹{(waterData.totalUsage * 15).toFixed(2)}</p>
-              <span className="inline-block mt-4 text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">Rate Base: ₹15 / Liter</span>
+              <p className="text-4xl font-black text-red-900 mt-2">₹{monthlyBill.toFixed(2)}</p>
+              <span className="inline-block mt-4 text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">30L Free / Month | ₹15 per Liter thereafter</span>
             </div>
             <div className={`bg-yellow-300 p-6 rounded-2xl shadow-sm border transition-colors ${isOveruse ? "bg-amber-50 border-amber-200" : "bg-emerald-50 border-emerald-200"}`}>
               <h3 className="text-slate-600 text-2x1 font-medium">Efficiency Analysis</h3>
               <p className={`text-3xl font-bold mt-2 ${isOveruse ? "text-red-900" : "text-red-900"}`}>
                 {isOveruse ? "Heavy Volumetric Usage" : "Optimal Threshold"}
               </p>
-              <p className="text-2x1 text-slate-600 mt-2">Target recommended limit is under 150L.</p>
+              <p className="text-2x1 text-slate-600 mt-2">Target recommended limit is under 100L.</p>
             </div>
           </div>
 
@@ -241,17 +314,30 @@ export default function WaterDashboard() {
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="bg-slate-50 text-slate-500 sticky top-0">
-                    <th className="p-3 font-bold">Sequence Index</th>
-                    <th className="p-3 font-bold">Running Cumulative Log</th>
-                    <th className="p-3 font-bold">Time Recorded</th>
+                    <th className="p-3 font-semibold">Sequence Index</th>
+                    <th className="p-3 font-semibold">Usage</th>
+                    <th className="p-3 font-semibold">Date</th>
+                    <th className="p-3 font-semibold">Time Recorded</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-400 text-slate-400">
                   {history.map((record, idx) => (
                     <tr key={record.id} className="hover:bg-slate-50/80">
-                      <td className="p-3 font-mono text-slate-900">{idx + 1}</td>
-                      <td className="p-3 font-medium text-slate-900">{Number(record.totalUsage || 0).toFixed(2)} L</td>
-                      <td className="p-3 text-slate-900">{record.time || "-"}</td>
+                      <td className="p-3 font-mono text-slate-600">
+                        {idx + 1}
+                      </td>
+
+                      <td className="p-3 font-medium text-slate-900">
+                        {Number(record.intervalUsage || 0).toFixed(2)} L
+                      </td>
+
+                      <td className="p-3 text-slate-500">
+                        {record.date || "-"}
+                      </td>
+
+                      <td className="p-3 text-slate-500">
+                        {record.time || "-"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -315,12 +401,13 @@ export default function WaterDashboard() {
                 <p className="text-3xl font-black text-blue-900 mt-1">1</p>
               </div>
 
-              <div className="bg-green-200 p-5 rounded-2xl border border-green-200 shadow-sm">
-                <span className="text-xs text-green-700 font-semibold uppercase">
-                  Current Usage
+              <div className="bg-yellow-100 p-5 rounded-2xl border border-yellow-200 shadow-sm">
+                <span className="text-xs text-yellow-700 font-semibold uppercase">
+                  Today's Usage
                 </span>
-                <p className="text-3xl font-black text-green-900 mt-1">
-                  {waterData.totalUsage} L
+
+                <p className="text-3xl font-black text-yellow-900 mt-1">
+                  {todayUsage.toFixed(2)} L
                 </p>
               </div>
 
@@ -354,9 +441,9 @@ export default function WaterDashboard() {
                   onChange={(e) => setHistoryType(e.target.value)}
                   className="border border-slate-200 bg-slate-50 p-2.5 text-sm rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
                 >
-                  <option value="day">1 Day (2 Min)</option>
-                  <option value="week">7 Days (14 Min)</option>
-                  <option value="month">30 Days (60 Min)</option>
+                  <option value="day">Today</option>
+                  <option value="week">Last 7 Days</option>
+                  <option value="month">Last 30 Days</option>
                 </select>
               </div>
 
@@ -478,7 +565,8 @@ export default function WaterDashboard() {
                       <th className="p-3">Record ID</th>
                       <th className="p-3">User </th>
                       <th className="p-3">Absolute Usage (L)</th>
-                      <th className="p-3">Timestamp</th>
+                      <th className="p-3">Date</th>
+                      <th className="p-3">Time</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -487,12 +575,19 @@ export default function WaterDashboard() {
                         <td className="p-3 font-mono text-slate-900 font-medium">{record.id}</td>
                         <td className="p-3 font-bold text-slate-900">{record.userName || "N/A"}</td>
                         <td className="p-3 text-slate-900 font-bold">{Number(record.totalUsage || 0).toFixed(2)} L</td>
-                        <td className="p-3 text-slate-900 font-mono">{record.time || "-"}</td>
+                        <td className="p-3 text-slate-500">
+                          {record.date || "-"}
+                        </td>
+
+                        <td className="p-3 text-slate-500 font-mono">
+                          {record.time || "-"}
+                        </td>
+                        
                       </tr>
                     ))}
                     {searchedHistory.length === 0 && (
                       <tr>
-                        <td colSpan="4" className="p-8 text-center text-slate-400">
+                        <td colSpan="5" className="p-8 text-center text-slate-400">
                           No matching logs match query parameter settings.
                         </td>
                       </tr>
