@@ -79,11 +79,11 @@ export default function WaterDashboard() {
 
   useEffect(() => {
     if (todayUsage > 1 && !emailSent) {
-      fetch("http://localhost:5000/send-alert");
+      fetch("https://water-email-server.onrender.com/send-alert");
       setEmailSent(true);
     }
   }, [todayUsage, emailSent]);
-  
+
   // FIREBASE LIVE STREAMING
  useEffect(() => {
     const currentRef = ref(db, "waterMeter/current");
