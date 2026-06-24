@@ -23,6 +23,8 @@ export default function WaterDashboard() {
     time: "-",
   });
 
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState("");
   const [history, setHistory] = useState([]);
   const today = new Date().toISOString().split("T")[0];
 
@@ -74,34 +76,43 @@ export default function WaterDashboard() {
   const limitExceeded = todayUsage > 1;
 
   // FIREBASE LIVE STREAMING
-  useEffect(() => {
-    const waterRef = ref(db, "waterMeter/history");
-    const unsubscribe = onValue(waterRef, (snapshot) => {
+ useEffect(() => {
+    const currentRef = ref(db, "waterMeter/current");
+
+    const unsubscribe = onValue(currentRef, (snapshot) => {
       const data = snapshot.val();
-      if (!data) return;
-      
+
+      if (data) {
+        setWaterData({
+          userName: data.userName || "-",
+          totalUsage: Number(data.totalUsage || 0),
+          time: data.time || "-",
+        });
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+ 
+useEffect(() => {
+    const historyRef = ref(db, "waterMeter/history");
+
+    const unsubscribe = onValue(historyRef, (snapshot) => {
+      const data = snapshot.val();
+
+      if (!data) {
+        setHistory([]);
+        return;
+      }
+
       const records = Object.keys(data).map((key) => ({
         id: key,
         ...data[key],
       }));
-      
-      // Sort chronologically
-      records.sort((a, b) => {
-        const dateA = new Date(`${a.date} ${a.time}`);
-        const dateB = new Date(`${b.date} ${b.time}`);
-        return dateB - dateA; // newest first
-      });
+
+      records.sort((a, b) => Number(b.id) - Number(a.id));
 
       setHistory(records);
-      
-      if (records.length > 0) {
-        const latest = records[records.length - 1];
-        setWaterData({
-          userName: latest.userName || "Valued Customer",
-          totalUsage: Number(latest.totalUsage || 0),
-          time: latest.time || "-",
-        });
-      }
     });
 
     return () => unsubscribe();
@@ -200,12 +211,30 @@ export default function WaterDashboard() {
 
   const filteredHistory = getFilteredHistory();
   
-  // Filter Master Table using search term input
-  const searchedHistory = history.filter(item => 
-    (item.userName && item.userName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    item.id.toString().includes(searchTerm)
-  );
+    // Filter Master Table using search term input
+    const filteredRecords = history.filter((record) => {
 
+    const matchesSearch =
+      (record.userName || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      record.id.toString().includes(searchTerm);
+
+    const matchesDate =
+      !selectedDate || record.date === selectedDate;
+
+    const matchesMonth =
+      !selectedMonth ||
+      record.date?.startsWith(selectedMonth);
+
+    return matchesSearch && matchesDate && matchesMonth;
+  });
+  
+  const filteredTotalUsage = filteredRecords.reduce(
+    (sum, record) =>
+      sum + Number(record.intervalUsage || 0),
+    0
+  );
   // --- RENDER 1: AUTHENTICATION INTERFACE ---
   if (!loggedIn) {
     return (
@@ -448,16 +477,12 @@ export default function WaterDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filteredHistory.map((item, index) => {
-                      const computedIncrement = index === 0 
-                        ? Number(item.totalUsage || 0) 
-                        : Number(item.totalUsage || 0) - Number(filteredHistory[index - 1].totalUsage || 0);
-                      
+                    {filteredHistory.map((item, index) => {                     
                       return (
                         <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
                           <td className="p-3 font-medium text-slate-800">{item.userName || waterData.userName}</td>
                           <td className="p-3 font-mono font-semibold text-blue-600">
-                            +{Math.max(0, computedIncrement).toFixed(2)} L
+                            +{Number(item.intervalUsage || 0).toFixed(2)} L
                           </td>
                           <td className="p-3 text-slate-500 font-mono text-xs">{item.time}</td>
                         </tr>
@@ -504,6 +529,7 @@ export default function WaterDashboard() {
           </div>
         )}
 
+
         {/* TAB 3: AUDIT COMPREHENSIVE REPORTS */}
         {activeTab === "reports" && (
           <div className="space-y-6">
@@ -536,7 +562,21 @@ export default function WaterDashboard() {
                 </p>
               </div>
             </div>
+            <div className="flex gap-4 mb-4">
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="border p-2 rounded"
+              />
 
+              <input
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="border p-2 rounded"
+              />
+            </div>                           
             {/* SEACH CONTROL LOG DATA FIELD */}
             <div className="bg-green-300 rounded-2xl border border-slate-200/80 shadow-sm p-6">
               <div className="mb-4">
@@ -547,6 +587,12 @@ export default function WaterDashboard() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full max-w-md p-2.5 border border-slate-200 text-sm rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
                 />
+              </div>
+
+              <div className="bg-blue-100 p-4 rounded-xl mb-4">
+                <h3 className="font-bold text-blue-900">
+                  Total Usage: {filteredTotalUsage.toFixed(2)} L
+                </h3>
               </div>
 
               <div className="overflow-x-auto max-h-[450px] overflow-y-auto">
@@ -561,7 +607,7 @@ export default function WaterDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-700">
-                    {searchedHistory.map((record) => (
+                    {filteredRecords.map((record) => (
                       <tr key={record.id} className="hover:bg-slate-50/80 transition-colors text-xs">
                         <td className="p-3 font-mono text-slate-900 font-medium">{record.id}</td>
                         <td className="p-3 font-bold text-slate-900">{record.userName || "N/A"}</td>
@@ -576,7 +622,7 @@ export default function WaterDashboard() {
                         
                       </tr>
                     ))}
-                    {searchedHistory.length === 0 && (
+                    {filteredRecords.length === 0 && (
                       <tr>
                         <td colSpan="5" className="p-8 text-center text-slate-400">
                           No matching logs match query parameter settings.
