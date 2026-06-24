@@ -78,7 +78,7 @@ export default function WaterDashboard() {
   const [emailSent, setEmailSent] = useState(false);
 
   useEffect(() => {
-    if (todayUsage = 0 && !emailSent) {
+    if (todayUsage = 1 && !emailSent) {
       fetch("https://water-dashboard-email.onrender.com/send-alert")
         .then(() => console.log("Email sent"))
         .catch((err) => console.error("Email error:", err));
