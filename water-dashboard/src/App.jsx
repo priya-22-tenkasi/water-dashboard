@@ -74,12 +74,15 @@ export default function WaterDashboard() {
     0
   );
   const limitExceeded = todayUsage > 1;
-  
+
   const [emailSent, setEmailSent] = useState(false);
 
   useEffect(() => {
     if (todayUsage > 1 && !emailSent) {
-      fetch("https://water-dashboard-email.onrender.com");
+      fetch("https://water-dashboard-email.onrender.com/send-alert")
+        .then(() => console.log("Email sent"))
+        .catch((err) => console.error("Email error:", err));
+
       setEmailSent(true);
     }
   }, [todayUsage, emailSent]);
