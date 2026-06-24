@@ -74,7 +74,16 @@ export default function WaterDashboard() {
     0
   );
   const limitExceeded = todayUsage > 1;
+  
+  const [emailSent, setEmailSent] = useState(false);
 
+  useEffect(() => {
+    if (todayUsage > 1 && !emailSent) {
+      fetch("http://localhost:5000/send-alert");
+      setEmailSent(true);
+    }
+  }, [todayUsage, emailSent]);
+  
   // FIREBASE LIVE STREAMING
  useEffect(() => {
     const currentRef = ref(db, "waterMeter/current");
