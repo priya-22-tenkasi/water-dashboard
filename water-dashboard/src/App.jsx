@@ -79,7 +79,7 @@ export default function WaterDashboard() {
 
   useEffect(() => {
     if (todayUsage > 1 && !emailSent) {
-      fetch("https://water-email-server.onrender.com/send-alert");
+      fetch("https://water-dashboard-email.onrender.com");
       setEmailSent(true);
     }
   }, [todayUsage, emailSent]);
