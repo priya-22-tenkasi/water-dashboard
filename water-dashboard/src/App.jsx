@@ -25,15 +25,52 @@ export default function WaterDashboard() {
 
   const [history, setHistory] = useState([]);
   const today = new Date().toISOString().split("T")[0];
+
   const todayRecords = history.filter(
     (item) => item.date === today
   );
-  let todayUsage = 0;
-  if (todayRecords.length > 1) {
-    todayUsage =
-      Number(todayRecords[todayRecords.length - 1].totalUsage) -
-      Number(todayRecords[0].totalUsage);
-  }
+
+  const todayUsage = todayRecords.reduce(
+    (sum, record) => sum + Number(record.intervalUsage || 0),
+    0
+  );
+  // Weekly Usage
+  const currentDate = new Date();
+
+  const weekRecords = history.filter((item) => {
+    if (!item.date) return false;
+
+    const recordDate = new Date(item.date);
+    const diffDays =
+      (currentDate - recordDate) / (1000 * 60 * 60 * 24);
+
+    return diffDays >= 0 && diffDays < 7;
+  });
+
+  const weeklyUsage = weekRecords.reduce(
+    (sum, record) => sum + Number(record.intervalUsage || 0),
+    0
+  );
+
+  // Monthly Usage
+  const currentMonth = currentDate.getMonth();
+  const currentYear = currentDate.getFullYear();
+
+  const monthRecords = history.filter((item) => {
+    if (!item.date) return false;
+
+    const recordDate = new Date(item.date);
+
+    return (
+      recordDate.getMonth() === currentMonth &&
+      recordDate.getFullYear() === currentYear
+    );
+  });
+
+  const monthlyUsage = monthRecords.reduce(
+    (sum, record) => sum + Number(record.intervalUsage || 0),
+    0
+  );
   const limitExceeded = todayUsage > 1;
 
   // FIREBASE LIVE STREAMING
@@ -121,52 +158,6 @@ export default function WaterDashboard() {
     });
   }
 
-  const getUsageDelta = (lookbackCount) => {
-    if (history.length < 2) return 0;
-    const initialIndex = Math.max(0, history.length - lookbackCount);
-    const delta = Number(history[history.length - 1]?.totalUsage || 0) - Number(history[initialIndex]?.totalUsage || 0);
-    return Math.max(0, delta);
-  };
-
-  const weekRecords = history.filter((item) => {
-    if (!item.date) return false;
-
-    const d = new Date(item.date);
-
-    const diffDays =
-      (today - d) / (1000 * 60 * 60 * 24);
-
-    return diffDays >= 0 && diffDays < 7;
-  });
-
-  let weeklyUsage = 0;
-
-  if (weekRecords.length > 1) {
-    weeklyUsage =
-      Number(weekRecords[weekRecords.length - 1].totalUsage || 0) -
-      Number(weekRecords[0].totalUsage || 0);
-  }
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
-
-  const monthRecords = history.filter((item) => {
-    if (!item.date) return false;
-
-    const d = new Date(item.date);
-
-    return (
-      d.getMonth() === currentMonth &&
-      d.getFullYear() === currentYear
-    );
-  });
-
-  let monthlyUsage = 0;
-
-  if (monthRecords.length > 1) {
-    monthlyUsage =
-      Number(monthRecords[monthRecords.length - 1].totalUsage || 0) -
-      Number(monthRecords[0].totalUsage || 0);
-  }
   const FREE_LIMIT = 30; // Liters per month
   const RATE_PER_LITER = 15;
 
