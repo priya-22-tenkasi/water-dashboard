@@ -1,13 +1,8 @@
 import { useState, useEffect } from "react";
-import {
-  signInWithEmailAndPassword,
-  sendPasswordResetEmail,
-  signOut
-} from "firebase/auth";
+import {signInWithEmailAndPassword,sendPasswordResetEmail,signOut} from "firebase/auth";
 import { ref, onValue } from "firebase/database";
 import { auth, db } from "./firebase";
 import waterBg from "./assets/wb.jpg";
-
 export default function WaterDashboard() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -16,39 +11,23 @@ export default function WaterDashboard() {
   const [historyType, setHistoryType] = useState("day");
   const [activeTab, setActiveTab] = useState("dashboard"); 
   const [searchTerm, setSearchTerm] = useState(""); // For Admin table search
-
-  const [waterData, setWaterData] = useState({
-    userName: "-",
-    totalUsage: 0,
-    time: "-",
-  });
-
+  const [waterData, setWaterData] = useState({ userName: "-",totalUsage: 0,time: "-",});
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedMonth, setSelectedMonth] = useState("");
   const [history, setHistory] = useState([]);
   const today = new Date().toISOString().split("T")[0];
-
-  const todayRecords = history.filter(
-    (item) => item.date === today
-  );
-
-  const todayUsage = todayRecords.reduce(
-    (sum, record) => sum + Number(record.intervalUsage || 0),
-    0
-  );
+  const todayRecords = history.filter( (item) => item.date === today );
+  const todayUsage = todayRecords.reduce((sum, record) => sum + Number(record.intervalUsage || 0), 0 );
+  
   // Weekly Usage
   const currentDate = new Date();
-
   const weekRecords = history.filter((item) => {
     if (!item.date) return false;
-
     const recordDate = new Date(item.date);
     const diffDays =
       (currentDate - recordDate) / (1000 * 60 * 60 * 24);
-
     return diffDays >= 0 && diffDays < 7;
   });
-
   const weeklyUsage = weekRecords.reduce(
     (sum, record) => sum + Number(record.intervalUsage || 0),
     0
@@ -57,32 +36,26 @@ export default function WaterDashboard() {
   // Monthly Usage
   const currentMonth = currentDate.getMonth();
   const currentYear = currentDate.getFullYear();
-
   const monthRecords = history.filter((item) => {
     if (!item.date) return false;
-
     const recordDate = new Date(item.date);
-
     return (
       recordDate.getMonth() === currentMonth &&
       recordDate.getFullYear() === currentYear
     );
   });
-
   const monthlyUsage = monthRecords.reduce(
     (sum, record) => sum + Number(record.intervalUsage || 0),
     0
   );
+
   const limitExceeded = todayUsage > 1;
-
   const [emailSent, setEmailSent] = useState(false);
-
   useEffect(() => {
-    if (todayUsage = 1 && !emailSent) {
+    if (todayUsage > 1 && !emailSent) {
       fetch("https://water-dashboard-email.onrender.com/send-alert")
         .then(() => console.log("Email sent"))
         .catch((err) => console.error("Email error:", err));
-
       setEmailSent(true);
     }
   }, [todayUsage, emailSent]);
@@ -90,10 +63,8 @@ export default function WaterDashboard() {
   // FIREBASE LIVE STREAMING
  useEffect(() => {
     const currentRef = ref(db, "waterMeter/current");
-
     const unsubscribe = onValue(currentRef, (snapshot) => {
       const data = snapshot.val();
-
       if (data) {
         setWaterData({
           userName: data.userName || "-",
@@ -102,31 +73,24 @@ export default function WaterDashboard() {
         });
       }
     });
-
     return () => unsubscribe();
   }, []);
  
 useEffect(() => {
     const historyRef = ref(db, "waterMeter/history");
-
     const unsubscribe = onValue(historyRef, (snapshot) => {
       const data = snapshot.val();
-
       if (!data) {
         setHistory([]);
         return;
       }
-
       const records = Object.keys(data).map((key) => ({
         id: key,
         ...data[key],
       }));
-
       records.sort((a, b) => Number(b.id) - Number(a.id));
-
       setHistory(records);
     });
-
     return () => unsubscribe();
   }, []);
 
@@ -183,62 +147,47 @@ useEffect(() => {
 
   const FREE_LIMIT = 30; // Liters per month
   const RATE_PER_LITER = 15;
-
   const chargeableUsage =
     monthlyUsage > FREE_LIMIT
       ? monthlyUsage - FREE_LIMIT
       : 0;
 
-  const monthlyBill =
-    chargeableUsage * RATE_PER_LITER;
+  const monthlyBill = chargeableUsage * RATE_PER_LITER;
 
   // TIMEFRAME TIME-FILTERING (Calculates relative min delta mapping)
   const getFilteredHistory = () => {
     const today = new Date();
-
     return history.filter((item) => {
       if (!item.date) return false;
-
       const recordDate = new Date(item.date);
-
       const diffDays = Math.floor(
         (today - recordDate) / (1000 * 60 * 60 * 24)
       );
-
       if (historyType === "day") {
         return diffDays === 0;
       }
-
       if (historyType === "week") {
         return diffDays >= 0 && diffDays < 7;
       }
-
       if (historyType === "month") {
         return diffDays >= 0 && diffDays < 30;
       }
-
       return false;
     });
   };
 
   const filteredHistory = getFilteredHistory();
-  
-    // Filter Master Table using search term input
     const filteredRecords = history.filter((record) => {
-
     const matchesSearch =
       (record.userName || "")
         .toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
       record.id.toString().includes(searchTerm);
-
     const matchesDate =
       !selectedDate || record.date === selectedDate;
-
     const matchesMonth =
       !selectedMonth ||
       record.date?.startsWith(selectedMonth);
-
     return matchesSearch && matchesDate && matchesMonth;
   });
   
@@ -317,7 +266,6 @@ useEffect(() => {
               Log Out
             </button>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-yellow-300 p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
               <div>
@@ -339,7 +287,6 @@ useEffect(() => {
               <p className="text-2x1 text-slate-600 mt-2">Target recommended limit is under 100L.</p>
             </div>
           </div>
-
           <div className="bg-purple-400 p-6 rounded-2xl shadow-sm border border-slate-100">
             <h3 className="text-lg font-bold text-slate-900 mb-4">Your Usage Log Chain</h3>
             <div className="overflow-x-auto max-h-60 overflow-y-auto">
@@ -362,11 +309,9 @@ useEffect(() => {
                       <td className="p-3 font-medium text-slate-900">
                         {Number(record.intervalUsage || 0).toFixed(2)} L
                       </td>
-
                       <td className="p-3 text-slate-500">
                         {record.date || "-"}
                       </td>
-
                       <td className="p-3 text-slate-500">
                         {record.time || "-"}
                       </td>
@@ -420,8 +365,7 @@ useEffect(() => {
       </div>
 
       {/* DASHBOARD WORKSPACE MAIN VIEW */}
-      <div className="flex-1 p-8 overflow-y-auto max-w-[1400px]">
-        
+      <div className="flex-1 p-8 overflow-y-auto max-w-[1400px]">     
         {/* TAB 1: OVERVIEW METRICS */}
         {activeTab === "dashboard" && (
           <div className="space-y-6">
@@ -432,17 +376,14 @@ useEffect(() => {
                 </span>
                 <p className="text-3xl font-black text-blue-900 mt-1">1</p>
               </div>
-
               <div className="bg-yellow-100 p-5 rounded-2xl border border-yellow-200 shadow-sm">
                 <span className="text-xs text-yellow-700 font-semibold uppercase">
                   Today's Usage
                 </span>
-
                 <p className="text-3xl font-black text-yellow-900 mt-1">
                   {todayUsage.toFixed(2)} L
                 </p>
               </div>
-
               <div className="bg-blue-200 p-5 rounded-2xl border border-blue-200 shadow-sm">
                 <span className="text-xs text-blue-700 font-semibold uppercase">
                   Weekly Usage
@@ -451,7 +392,6 @@ useEffect(() => {
                   {weeklyUsage.toFixed(1)} L
                 </p>
               </div>
-
               <div className="bg-green-200 p-5 rounded-2xl border border-green-200 shadow-sm">
                 <span className="text-xs text-green-700 font-semibold uppercase">
                   Monthly Usage
@@ -478,7 +418,6 @@ useEffect(() => {
                   <option value="month">Last 30 Days</option>
                 </select>
               </div>
-
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm border-collapse">
                   <thead>
@@ -522,7 +461,6 @@ useEffect(() => {
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-ping"></span>
                 <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Live </span>
               </div>
-
               <div className="grid grid-cols-2 gap-y-4 gap-x-8 border-t border-slate-100 pt-6">
                 <div>
                   <span className="text-xs font-medium text-white-400 block">User Name </span>
@@ -541,7 +479,6 @@ useEffect(() => {
           </div>
         )}
 
-
         {/* TAB 3: AUDIT COMPREHENSIVE REPORTS */}
         {activeTab === "reports" && (
           <div className="space-y-6">
@@ -553,7 +490,6 @@ useEffect(() => {
                 Export Master Report / PDF
               </button>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               <div className="bg-purple-300 p-5 rounded-2xl border border-slate-200/80 shadow-sm">
                 <span className="text-xs text-slate-600 font-semibold uppercase">Total Log Iterations</span>
@@ -581,14 +517,14 @@ useEffect(() => {
                 onChange={(e) => setSelectedDate(e.target.value)}
                 className="border p-2 rounded"
               />
-
               <input
                 type="month"
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
                 className="border p-2 rounded"
               />
-            </div>                           
+            </div> 
+
             {/* SEACH CONTROL LOG DATA FIELD */}
             <div className="bg-green-300 rounded-2xl border border-slate-200/80 shadow-sm p-6">
               <div className="mb-4">
@@ -600,13 +536,11 @@ useEffect(() => {
                   className="w-full max-w-md p-2.5 border border-slate-200 text-sm rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
                 />
               </div>
-
               <div className="bg-blue-100 p-4 rounded-xl mb-4">
                 <h3 className="font-bold text-blue-900">
                   Total Usage: {filteredTotalUsage.toFixed(2)} L
                 </h3>
               </div>
-
               <div className="overflow-x-auto max-h-[450px] overflow-y-auto">
                 <table className="w-full text-left text-sm border-collapse">
                   <thead>
@@ -627,11 +561,9 @@ useEffect(() => {
                         <td className="p-3 text-slate-500">
                           {record.date || "-"}
                         </td>
-
                         <td className="p-3 text-slate-500 font-mono">
                           {record.time || "-"}
-                        </td>
-                        
+                        </td>                        
                       </tr>
                     ))}
                     {filteredRecords.length === 0 && (
