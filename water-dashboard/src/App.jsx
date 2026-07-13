@@ -78,7 +78,7 @@ export default function WaterDashboard() {
  
 useEffect(() => {
     const historyRef = ref(db, "waterMeter/history");
-    const unsubscribe = onValue(historyRef, (snapshot) => {
+    const unsubscribe = onValue(historyRef, (snapshot) => {   
       const data = snapshot.val();
       if (!data) {
         setHistory([]);
@@ -90,6 +90,9 @@ useEffect(() => {
       }));
       records.sort((a, b) => Number(b.id) - Number(a.id));
       setHistory(records);
+      (error) => {
+        console.log("Firebase Error:", error);
+      }
     });
     return () => unsubscribe();
   }, []);
