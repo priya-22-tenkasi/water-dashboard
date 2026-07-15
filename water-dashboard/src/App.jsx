@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import {signInWithEmailAndPassword,sendPasswordResetEmail,signOut} from "firebase/auth";
+import {signInWithEmailAndPassword,sendPasswordResetEmail,signOut,onAuthStateChanged,} from "firebase/auth";
 import { ref, onValue } from "firebase/database";
 import { auth, db } from "./firebase";
 import waterBg from "./assets/wb.jpg";
@@ -97,16 +97,30 @@ useEffect(() => {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setLoggedIn(true);
+
+        if (user.email.toLowerCase() === "11bpriyadharshini@gmail.com") {
+          setCurrentUser("admin");
+        } else {
+          setCurrentUser("user");
+        }
+      } else {
+        setLoggedIn(false);
+        setCurrentUser(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+
   // LOGIN CONTEXT
   const handleLogin = async () => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      setLoggedIn(true);
-      if (email.toLowerCase() === "11bpriyadharshini@gmail.com") {
-        setCurrentUser("admin");
-      } else {
-        setCurrentUser("user");
-      }
     } catch (error) {
       alert(error.message);
     }
@@ -115,11 +129,6 @@ useEffect(() => {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      setLoggedIn(false);
-      setCurrentUser(null);
-      setActiveTab("dashboard");
-      setEmail("");
-      setPassword("");
     } catch (error) {
       alert("Error logging out");
     }
